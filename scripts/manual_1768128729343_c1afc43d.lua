@@ -5,8 +5,8 @@
     ║  Script ID: c1afc43d
     ║  Author: minhtri.csx
     ║  Created: 2026-01-11T10:52:09.917Z
-    ║  Updated: 2026-01-11T10:57:08.744Z
-    ║  Version: 2
+    ║  Updated: 2026-01-11T11:35:06.708Z
+    ║  Version: 3
     ╚═══════════════════════════════════════════════════════════╝
 --]]
 
@@ -91,7 +91,6 @@ ESP_Tab:CreateSlider({
     Min = 100,
     Max = 2000,
     Default = 1000,
-    Flag = "MaxDistance",
     Callback = function(Value)
         Settings.MaxDistance = Value
     end
@@ -103,7 +102,6 @@ ESP_Tab:CreateSlider({
     Max = 1,
     Default = 0.1,
     Round = 2,
-    Flag = "RefreshRate",
     Callback = function(Value)
         Settings.RefreshRate = Value
     end
@@ -175,7 +173,6 @@ Visuals_Tab:CreateToggle({
 Visuals_Tab:CreateColorPicker({
     Name = "Box Color",
     Color = Settings.BoxColor,
-    Flag = "BoxColor",
     Callback = function(Color)
         Settings.BoxColor = Color
     end
@@ -184,7 +181,6 @@ Visuals_Tab:CreateColorPicker({
 Visuals_Tab:CreateColorPicker({
     Name = "Text Color",
     Color = Settings.TextColor,
-    Flag = "TextColor",
     Callback = function(Color)
         Settings.TextColor = Color
     end
@@ -193,221 +189,236 @@ Visuals_Tab:CreateColorPicker({
 Visuals_Tab:CreateColorPicker({
     Name = "Tracer Color",
     Color = Settings.TracerColor,
-    Flag = "TracerColor",
     Callback = function(Color)
         Settings.TracerColor = Color
     end
 })
 
--- ESP Drawing Functions
-local function DrawESP(player)
-    if not player or player == LocalPlayer or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
-        return
+Visuals_Tab:CreateSlider({
+    Name = "Box Thickness",
+    Min = 1,
+    Max = 5,
+    Default = 1.5,
+    Round = 1,
+    Callback = function(Value)
+        Settings.BoxThickness = Value
     end
-    
-    if not ESP_Enabled then
-        return
-    end
-    
-    local character = player.Character
-    local humanoid = character:FindFirstChild("Humanoid")
-    if not humanoid then return end
-    
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    local head = character:FindFirstChild("Head")
-    
-    if not rootPart or not head then return end
-    
-    local rootPosition, rootVisible = Camera:WorldToViewportPoint(rootPart.Position)
-    local headPosition, headVisible = Camera:WorldToViewportPoint(head.Position)
-    
-    if not rootVisible or not headVisible then return end
-    
-    local distance = (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and 
-        (rootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude) or 0
-    
-    if distance > Settings.MaxDistance then return end
-    
-    -- Team check
-    if Settings.TeamCheck and LocalPlayer.Team and player.Team and LocalPlayer.Team == player.Team then
-        return
-    end
-    
-    -- Create ESP elements
-    local espData = {
-        Box = nil,
-        Name = nil,
-        HealthBar = nil,
-        Distance = nil,
-        Tracer = nil,
-        Player = player
-    }
-    
-    -- Box ESP
-    if Settings.BoxESP then
-        espData.Box = Drawing.new("Square")
-        espData.Box.Thickness = Settings.BoxThickness
-        espData.Box.Transparency = Settings.BoxTransparency
-        espData.Box.Color = Settings.TeamColor and player.Team and player.Team.TeamColor.Color or Settings.BoxColor
-        espData.Box.Visible = true
-        espData.Box.Filled = false
-    end
-    
-    -- Name ESP
-    if Settings.NameESP then
-        espData.Name = Drawing.new("Text")
-        espData.Name.Text = player.Name
-        espData.Name.Size = Settings.TextSize
-        espData.Name.Color = Settings.TextColor
-        espData.Name.Center = true
-        espData.Name.Visible = true
-        espData.Name.Font = Drawing.Fonts.Plex
-    end
-    
-    -- Health Bar
-    if Settings.HealthBar and humanoid then
-        espData.HealthBar = Drawing.new("Square")
-        espData.HealthBar.Thickness = 0
-        espData.HealthBar.Filled = true
-        espData.HealthBar.Visible = true
-        espData.HealthBar.Color = Color3.fromRGB(0, 255, 0)
-    end
-    
-    -- Distance ESP
-    if Settings.DistanceESP then
-        espData.Distance = Drawing.new("Text")
-        espData.Distance.Text = tostring(math.floor(distance)) .. "m"
-        espData.Distance.Size = Settings.TextSize
-        espData.Distance.Color = Settings.TextColor
-        espData.Distance.Center = true
-        espData.Distance.Visible = true
-        espData.Distance.Font = Drawing.Fonts.Plex
-    end
-    
-    -- Tracer ESP
-    if Settings.TracerESP then
-        espData.Tracer = Drawing.new("Line")
-        espData.Tracer.Thickness = 1
-        espData.Tracer.Transparency = 0.5
-        espData.Tracer.Color = Settings.TracerColor
-        espData.Tracer.Visible = true
-    end
-    
-    table.insert(Esp_Objects, espData)
-end
+})
 
-local function UpdateESP()
-    if not ESP_Enabled then return end
-    
-    -- Clear old ESP
-    ClearESP()
-    
-    -- Draw ESP for all players
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player and player.Character then
-            spawn(function()
-                DrawESP(player)
-            end)
-        end
+Visuals_Tab:CreateSlider({
+    Name = "Box Transparency",
+    Min = 0,
+    Max = 1,
+    Default = 0.3,
+    Round = 2,
+    Callback = function(Value)
+        Settings.BoxTransparency = Value
     end
-end
+})
 
+Visuals_Tab:CreateSlider({
+    Name = "Text Size",
+    Min = 8,
+    Max = 24,
+    Default = 14,
+    Round = 0,
+    Callback = function(Value)
+        Settings.TextSize = Value
+    end
+})
+
+-- ESP Functions
 local function ClearESP()
-    for _, espData in ipairs(Esp_Objects) do
-        if espData.Box then espData.Box:Remove() end
-        if espData.Name then espData.Name:Remove() end
-        if espData.HealthBar then espData.HealthBar:Remove() end
-        if espData.Distance then espData.Distance:Remove() end
-        if espData.Tracer then espData.Tracer:Remove() end
+    for _, v in pairs(Esp_Objects) do
+        if v then
+            if v.Box then
+                v.Box:Destroy()
+            end
+            if v.Name then
+                v.Name:Destroy()
+            end
+            if v.Health then
+                v.Health:Destroy()
+            end
+            if v.Distance then
+                v.Distance:Destroy()
+            end
+            if v.Tracer then
+                v.Tracer:Destroy()
+            end
+        end
     end
     Esp_Objects = {}
 end
 
-local function UpdateESPElements()
-    if not ESP_Enabled then return end
+local function GetTeamColor(player)
+    if not Settings.TeamColor then
+        return Settings.BoxColor
+    end
+    local team = player.Team
+    if team and team.TeamColor then
+        return team.TeamColor.Color
+    end
+    return Settings.BoxColor
+end
+
+local function CreateESP(player)
+    if player == LocalPlayer or not player.Character then return end
     
-    local cameraPos = Camera.CFrame.Position
+    local character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
     
-    for i, espData in ipairs(Esp_Objects) do
-        if not espData or not espData.Player or not espData.Player.Character then
-            table.remove(Esp_Objects, i)
-            continue
-        end
-        
-        local character = espData.Player.Character
-        if not character then continue end
-        
-        local rootPart = character:FindFirstChild("HumanoidRootPart")
-        local head = character:FindFirstChild("Head")
-        local humanoid = character:FindFirstChild("Humanoid")
-        
-        if not rootPart or not head or not humanoid then continue end
-        
-        local rootPosition, rootVisible = Camera:WorldToViewportPoint(rootPart.Position)
-        local headPosition, headVisible = Camera:WorldToViewportPoint(head.Position)
-        
-        if not rootVisible or not headVisible then
-            if espData.Box then espData.Box.Visible = false end
-            if espData.Name then espData.Name.Visible = false end
-            if espData.HealthBar then espData.HealthBar.Visible = false end
-            if espData.Distance then espData.Distance.Visible = false end
-            if espData.Tracer then espData.Tracer.Visible = false end
-            continue
-        end
-        
-        local distance = (rootPart.Position - cameraPos).Magnitude
-        
-        -- Update Box
-        if Settings.BoxESP and espData.Box then
-            local boxSize = Vector2.new(math.abs(headPosition.X - rootPosition.X) * 1.5, 
-                                     headPosition.Y - rootPosition.Y + 15)
-            espData.Box.Size = boxSize
-            espData.Box.Position = Vector2.new(rootPosition.X - boxSize.X / 2, rootPosition.Y - boxSize.Y / 2)
-            espData.Box.Visible = true
-            espData.Box.Color = Settings.TeamColor and espData.Player.Team and espData.Player.Team.TeamColor.Color or Settings.BoxColor
-        end
-        
-        -- Update Name
-        if Settings.NameESP and espData.Name then
-            espData.Name.Position = Vector2.new(rootPosition.X, headPosition.Y - 20)
-            espData.Name.Text = espData.Player.Name
-            espData.Name.Visible = true
-        end
-        
-        -- Update Health Bar
-        if Settings.HealthBar and espData.HealthBar and humanoid then
-            local healthPercent = humanoid.Health / humanoid.MaxHealth
-            local barSize = Vector2.new(3, headPosition.Y - rootPosition.Y - 5)
-            espData.HealthBar.Size = Vector2.new(barSize.X, barSize.Y * healthPercent)
-            espData.HealthBar.Position = Vector2.New(rootPosition.X + 10, rootPosition.Y)
-            espData.HealthBar.Color = healthPercent > 0.5 and Color3.fromRGB(0, 255, 0) or 
-                                     healthPercent > 0.25 and Color3.fromRGB(255, 255, 0) or 
-                                     Color3.fromRGB(255, 0, 0)
-            espData.HealthBar.Visible = true
-        end
-        
-        -- Update Distance
-        if Settings.DistanceESP and espData.Distance then
-            espData.Distance.Position = Vector2.New(rootPosition.X, rootPosition.Y + 20)
-            espData.Distance.Text = tostring(math.floor(distance)) .. "m"
-            espData.Distance.Visible = true
-        end
-        
-        -- Update Tracer
-        if Settings.TracerESP and espData.Tracer then
-            local bottomCenter = Vector2.New(rootPosition.X, rootPosition.Y + 50)
-            espData.Tracer.From = bottomCenter
-            espData.Tracer.To = Vector2.New(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-            espData.Tracer.Visible = true
+    local esp_table = {}
+    
+    -- Box ESP
+    if Settings.BoxESP then
+        local box = Drawing.new("Square")
+        box.Thickness = Settings.BoxThickness
+        box.Transparency = Settings.BoxTransparency
+        box.Color = GetTeamColor(player)
+        box.Filled = false
+        esp_table.Box = box
+    end
+    
+    -- Name ESP
+    if Settings.NameESP then
+        local name = Drawing.new("Text")
+        name.Text = player.Name
+        name.Color = Settings.TextColor
+        name.Size = Settings.TextSize
+        name.Center = true
+        name.Outline = true
+        esp_table.Name = name
+    end
+    
+    -- Health Bar
+    if Settings.HealthBar then
+        local health = Drawing.new("Square")
+        health.Thickness = 1
+        health.Color = Color3.new(0, 1, 0)
+        health.Filled = true
+        esp_table.Health = health
+    end
+    
+    -- Distance ESP
+    if Settings.DistanceESP then
+        local distance = Drawing.new("Text")
+        distance.Text = "0m"
+        distance.Color = Settings.TextColor
+        distance.Size = Settings.TextSize
+        distance.Center = true
+        distance.Outline = true
+        esp_table.Distance = distance
+    end
+    
+    -- Tracer ESP
+    if Settings.TracerESP then
+        local tracer = Drawing.new("Line")
+        tracer.Thickness = 1
+        tracer.Color = Settings.TracerColor
+        tracer.Transparency = 1
+        esp_table.Tracer = tracer
+    end
+    
+    Esp_Objects[player] = esp_table
+end
+
+local function UpdateESP()
+    ClearESP()
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            if Settings.TeamCheck and player.Team == LocalPlayer.Team then
+                continue
+            end
+            
+            local distance = (player.Character and player.Character:FindFirstChild("HumanoidRootPart") and 
+                             (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude) or 0
+            
+            if distance <= Settings.MaxDistance then
+                CreateESP(player)
+            end
         end
     end
 end
 
--- Start ESP loop
+local function UpdateDrawings()
+    for player, esp_table in pairs(Esp_Objects) do
+        if not player or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+            Esp_Objects[player] = nil
+            continue
+        end
+        
+        local rootPart = player.Character.HumanoidRootPart
+        local vector, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+        
+        if not onScreen then
+            if esp_table.Box then esp_table.Box.Visible = false end
+            if esp_table.Name then esp_table.Name.Visible = false end
+            if esp_table.Health then esp_table.Health.Visible = false end
+            if esp_table.Distance then esp_table.Distance.Visible = false end
+            if esp_table.Tracer then esp_table.Tracer.Visible = false end
+            continue
+        end
+        
+        local scale = 100 / (vector.Z * 100)
+        local size = Vector2.new(5 * scale, 7 * scale)
+        local top = Vector2.new(vector.X - size.X / 2, vector.Y - size.Y / 2)
+        local bottom = Vector2.new(vector.X + size.X / 2, vector.Y + size.Y / 2)
+        
+        -- Update Box
+        if esp_table.Box then
+            esp_table.Box.Size = Vector2.new(bottom.X - top.X, bottom.Y - top.Y)
+            esp_table.Box.Position = top
+            esp_table.Box.Visible = true
+        end
+        
+        -- Update Name
+        if esp_table.Name then
+            esp_table.Name.Position = Vector2.new(vector.X, top.Y - 15)
+            esp_table.Name.Visible = true
+        end
+        
+        -- Update Health Bar
+        if esp_table.Health then
+            local health = player.Character:FindFirstChild("Humanoid")
+            if health then
+                local healthPercentage = health.Health / health.MaxHealth
+                local healthWidth = size.X * healthPercentage
+                local healthPos = Vector2.new(top.X + (size.X - healthWidth) / 2, top.Y - 5)
+                local healthSize = Vector2.new(healthWidth, 3)
+                
+                esp_table.Health.Position = healthPos
+                esp_table.Health.Size = healthSize
+                esp_table.Health.Color = Color3.new(1 - healthPercentage, healthPercentage, 0)
+                esp_table.Health.Visible = true
+            end
+        end
+        
+        -- Update Distance
+        if esp_table.Distance then
+            local distance = (rootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+            esp_table.Distance.Text = math.floor(distance / 3.281) .. "m"
+            esp_table.Distance.Position = Vector2.new(vector.X, bottom.Y + 15)
+            esp_table.Distance.Visible = true
+        end
+        
+        -- Update Tracer
+        if esp_table.Tracer then
+            local screenCenter = Camera.ViewportSize / 2
+            esp_table.Tracer.From = screenCenter
+            esp_table.Tracer.To = Vector2.new(vector.X, vector.Y)
+            esp_table.Tracer.Visible = true
+        end
+    end
+end
+
+-- Main ESP Loop
 spawn(function()
     while wait(Settings.RefreshRate) do
         if ESP_Enabled then
-            UpdateESPElements()
+            UpdateESP()
+            UpdateDrawings()
         end
     end
 end)
@@ -415,37 +426,19 @@ end)
 -- Player added/removed events
 Players.PlayerAdded:Connect(function(player)
     if ESP_Enabled then
-        spawn(function()
-            wait(0.5) -- Wait for character to load
-            DrawESP(player)
-        end)
+        CreateESP(player)
     end
 end)
 
 Players.PlayerRemoving:Connect(function(player)
-    for i, espData in ipairs(Esp_Objects) do
-        if espData.Player == player then
-            if espData.Box then espData.Box:Remove() end
-            if espData.Name then espData.Name:Remove() end
-            if espData.HealthBar then espData.HealthBar:Remove() end
-            if espData.Distance then espData.Distance:Remove() end
-            if espData.Tracer then espData.Tracer:Remove() end
-            table.remove(Esp_Objects, i)
-            break
-        end
+    if Esp_Objects[player] then
+        ClearESP()
     end
 end)
 
--- Character added event for existing players
-for _, player in ipairs(Players:GetPlayers()) do
-    player.CharacterAdded:Connect(function()
-        if ESP_Enabled then
-            spawn(function()
-                wait(0.5) -- Wait for character to load
-                DrawESP(player)
-            end)
-        end
-    end)
+-- Initialize ESP for existing players
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        CreateESP(player)
+    end
 end
-
-print("VTriP ESP đã được tải xong!")
